@@ -5,6 +5,14 @@
 //  Created by Mark Onyschuk on 11/17/2013.
 //  Copyright (c) 2013 Mark Onyschuk. All rights reserved.
 //
+//  Copyright (c) 2016 Michael LaMorte. All rights reserved.
+//
+//  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
 
 #import "LITabCell.h"
 #import "LITabControl.h"
@@ -27,6 +35,8 @@
 
 @implementation LITabCell
 
+@synthesize delegate;
+
 - (id)initTextCell:(NSString *)aString {
     if ((self = [super initTextCell:aString])) {
         
@@ -47,6 +57,7 @@
         
         [self setHighlightsBy:NSNoCellMask];
         [self setLineBreakMode:NSLineBreakByTruncatingTail];
+        
     }
     return self;
 }
@@ -137,6 +148,14 @@
     return ret;
 }
 
++ (NSImage *)closeImage {
+    static NSImage *ret = nil;
+    if (ret == nil) {
+        ret = [[NSImage imageNamed:@"NSStopProgressFreestandingTemplate"] imageWithTint:[NSColor darkGrayColor]];
+    }
+    return ret;
+}
+
 - (NSSize)cellSizeForBounds:(NSRect)aRect {
     NSSize titleSize = [[self attributedTitle] size];
     NSSize popupSize = ([self menu] == nil) ? NSZeroSize : [[LITabCell popupImage] size];
@@ -152,6 +171,14 @@
     return popupRect;
 }
 
+- (NSRect)closeRectWithFrame:(NSRect)cellFrame {
+    NSRect closeRect = NSZeroRect;
+    closeRect.size = [[LITabCell closeImage] size];
+    closeRect.origin = NSMakePoint(10.0, NSMidY(cellFrame) - NSHeight(closeRect) / 2);
+    
+    return closeRect;
+}
+
 - (NSRect)titleRectForBounds:(NSRect)cellFrame {
     NSSize titleSize = [[self attributedTitle] size];
     NSRect titleRect = NSMakeRect(NSMinX(cellFrame), floorf(NSMidY(cellFrame) - titleSize.height/2), NSWidth(cellFrame), titleSize.height);
@@ -163,6 +190,9 @@
         titleRect = NSOffsetRect(titleRect, 0, -1);
         titleRect = NSInsetRect(titleRect, titleRectInset, 0);
     }
+    
+//    titleRect.origin.x = titleRect.origin.x + [self closeRectWithFrame:cellFrame].size.width;
+    
     return titleRect;
 }
 
@@ -184,6 +214,8 @@
 
 - (BOOL)trackMouse:(NSEvent *)theEvent inRect:(NSRect)cellFrame ofView:(NSView *)controlView untilMouseUp:(BOOL)flag {
     NSRect popupRect = [self popupRectWithFrame:cellFrame];
+    NSRect closeRect = [self closeRectWithFrame:cellFrame];
+    
     NSPoint location = [controlView convertPoint:[theEvent locationInWindow] fromView:nil];
     if ([self hitTestForEvent:theEvent inRect:[[controlView superview] frame] ofView:[controlView superview]] != NSCellHitNone) {
         
@@ -193,7 +225,11 @@
             [menu popUpMenuPositioningItem:menu.itemArray[0] atLocation:NSMakePoint(NSMidX(popupRect), NSMaxY(popupRect)) inView:controlView];
             [self setShowsMenu:NO];
             return YES;
-            
+        } else if (NSPointInRect(location, closeRect)) {
+            NSLog(@"close");
+            if (delegate && [delegate respondsToSelector:@selector(closeTabHandler:)]) {
+                [delegate closeTabHandler:self.tabUUID];
+            }
         }
     }
     
@@ -237,6 +273,8 @@
 
     if (self.showsMenu) {
         [[LITabCell popupImage] drawInRect:[self popupRectWithFrame:cellFrame] fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0 respectFlipped:YES hints:nil];
+        
+        [[LITabCell closeImage] drawInRect:[self closeRectWithFrame:cellFrame] fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0 respectFlipped:YES hints:nil];
     }
 }
 
